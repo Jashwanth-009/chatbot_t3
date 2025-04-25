@@ -2,25 +2,36 @@ import os
 import configparser
 import logging
 
-# Create logs directory if it doesn't exist
-os.makedirs('logs', exist_ok=True)
+# Get the absolute path of the current script's directory
+project_root = os.path.dirname(os.path.abspath(__file__))
 
+# Create logs directory if it doesn't exist
+logs_dir = os.path.join(project_root, 'logs')
+os.makedirs(logs_dir, exist_ok=True)
+
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     filemode='w',
-    filename='logs/config.log',
+    filename=os.path.join(logs_dir, 'config.log'),
     encoding="utf-8",
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
 logging.info("logging successful")
 
+# Create config
 config = configparser.ConfigParser()
 
-config.add_section('path')
-config.set('path', 'pdf_dir', r'C:\Users\Jashwasnth B\OneDrive - TECHTRIAD TEAM INC\Documents\chatbot_t3\chatbot_t3\pdfs')
+# You can use relative paths here too. Change this line as needed.
+pdf_dir = os.path.join(project_root, 'pdfs')  # Assuming you have a 'pdfs' directory in your project
 
-with open(r'C:\Users\Jashwasnth B\OneDrive - TECHTRIAD TEAM INC\Documents\chatbot_t3\chatbot_t3\logs\configfile.properties', 'w') as configfile:
+config.add_section('path')
+config.set('path', 'pdf_dir', pdf_dir)
+
+# Write config to a relative path
+configfile_path = os.path.join(logs_dir, 'configfile.properties')
+with open(configfile_path, 'w') as configfile:
     config.write(configfile)
 
 logging.info("config successful")
