@@ -35,32 +35,69 @@ def is_within_bbox(word, bbox):
     wx0, wy0, wx1, wy1 = float(word['x0']), float(word['top']), float(word['x1']), float(word['bottom'])
     return wx0 >= x0 and wx1 <= x1 and wy0 >= y0 and wy1 <= y1
 
+
+def get_pdf_files_from_github():
+    # GitHub API URL to get the contents of the 'pdfs' directory in the repository
+    repo_url = "https://api.github.com/repos/Jashwanth-009/chatbot_t3/contents/pdfs"
+    response = requests.get(repo_url)
+
+    if response.status_code == 200:
+        files = response.json()
+        # Filter out files that end with '.pdf'
+        pdf_files = [file['name'] for file in files if file['name'].endswith('.pdf')]
+        return pdf_files
+    else:
+        print("Error fetching data from GitHub:", response.status_code)
+        return []
+        
 # === Function: Extract text from PDFs (excluding tables) ===
-def extract_text_from_pdfs(config):
-    pdf_dir =r"https://github.com/Jashwanth-009/chatbot_t3/tree/main/pdfs"
+def extract_text_from_pdfs():
+    # GitHub raw URL for your PDFs
+    pdf_url_base = 'https://raw.githubusercontent.com/Jashwanth-009/chatbot_t3/main/pdfs/'
+
+    # Fetch the list of PDF files from GitHub using the GitHub API
+    pdf_files = get_pdf_files_from_github()
+
+    if not pdf_files:
+        print("No PDF files found in the repository.")
+        return
+
     output_folder = "outputs"
     os.makedirs(output_folder, exist_ok=True)
 
-    for file_name in os.listdir(pdf_dir):
-        if file_name.endswith('.pdf'):
-            pdf_path = os.path.join(pdf_dir, file_name)
-            with pdfplumber.open(pdf_path) as doc:
-                for i, page in enumerate(doc.pages, start=1):
-                    words = page.extract_words()
-                    tables = page.find_tables()
-                    table_bboxes = [table.bbox for table in tables]
-                    non_table_words = [word['text'] for word in words if not any(is_within_bbox(word, bbox) for bbox in table_bboxes)]
+    for file_name in pdf_files:
+        # Construct the raw URL for each PDF file
+        pdf_url = pdf_url_base + file_name
 
-                    clean_text = ' '.join(non_table_words)
-                    base_name = os.path.splitext(file_name)[0]
-                    text_file_path = os.path.join(output_folder, f"{base_name}_page_{i}.txt")
+        # Specify the local path to save the file
+        local_pdf_path = os.path.join('pdfs', file_name)
 
-                    with open(text_file_path, 'w', encoding='utf-8') as text_file:
-                        text_file.write(clean_text + "\n\n")
-                        for table in tables:
-                            for row in table.extract():
-                                text_file.write("\t".join(cell or '' for cell in row) + "\n")
-                            text_file.write("\n")
+        # Download the file if it doesn't exist locally
+        if not os.path.exists(local_pdf_path):
+            os.makedirs(os.path.dirname(local_pdf_path), exist_ok=True)
+            response = requests.get(pdf_url)
+            with open(local_pdf_path, 'wb') as f:
+                f.write(response.content)
+            print(f"Downloaded {local_pdf_path}")
+
+        # Now, process the PDF using pdfplumber
+        with pdfplumber.open(local_pdf_path) as doc:
+            for i, page in enumerate(doc.pages, start=1):
+                words = page.extract_words()
+                tables = page.find_tables()
+                table_bboxes = [table.bbox for table in tables]
+                non_table_words = [word['text'] for word in words if not any(is_within_bbox(word, bbox) for bbox in table_bboxes)]
+
+                clean_text = ' '.join(non_table_words)
+                base_name = os.path.splitext(file_name)[0]
+                text_file_path = os.path.join(output_folder, f"{base_name}_page_{i}.txt")
+
+                with open(text_file_path, 'w', encoding='utf-8') as text_file:
+                    text_file.write(clean_text + "\n\n")
+                    for table in tables:
+                        for row in table.extract():
+                            text_file.write("\t".join(cell or '' for cell in row) + "\n")
+                        text_file.write("\n")
 
 # === Chunking ===
 def chunk_text(text, chunk_size=500, overlap=100):
@@ -201,7 +238,7 @@ def ask_from_cli():
 # === Data Preprocessing ===
 def main():
     try:
-        extract_text_from_pdfs(config)
+        extract_text_from_pdfs()
         all_chunks = chunk_all_texts()
         build_vector_db(all_chunks)
         logging.info(" All files processed and stored in vector DB.")
@@ -213,7 +250,7 @@ app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
 
 # === Preload Chunks & Model Only Once ===
-extract_text_from_pdfs(config)
+extract_text_from_pdfs()
 chunks = chunk_all_texts()
 collection, model = build_vector_db(chunks)
 
