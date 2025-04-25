@@ -271,3 +271,5 @@ if __name__ == '__main__':
         ask_from_cli()
     else:
         app.run(debug=True, use_reloader=False)
+    port = int(os.environ.get("PORT", 5000))  
+    app.run(host='0.0.0.0', port=port)
