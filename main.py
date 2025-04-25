@@ -37,7 +37,7 @@ def is_within_bbox(word, bbox):
 
 # === Function: Extract text from PDFs (excluding tables) ===
 def extract_text_from_pdfs(config):
-    pdf_dir = config.get("path", "pdf_dir")
+    pdf_dir =r"https://github.com/Jashwanth-009/chatbot_t3/tree/main/pdfs"
     output_folder = "outputs"
     os.makedirs(output_folder, exist_ok=True)
 
